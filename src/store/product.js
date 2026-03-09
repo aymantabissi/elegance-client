@@ -1,14 +1,16 @@
-import { create } from 'zustand';
+import { create } from "zustand";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const useProductStore = create((set) => ({
   products: [],
   setProducts: (products) => set({ products }),
 
-  // Create a new product
   createProduct: async (newProduct) => {
     if (!newProduct.name || !newProduct.price || !newProduct.image) {
       return { success: false, message: "Please fill in all fields" };
     }
+
     const formData = new FormData();
     formData.append("name", newProduct.name);
     formData.append("price", newProduct.price);
@@ -17,9 +19,9 @@ export const useProductStore = create((set) => ({
     formData.append("description", newProduct.description);
     formData.append("image", newProduct.image);
 
-    const res = await fetch("/api/products", {
+    const res = await fetch(`${API_URL}/api/products`, {
       method: "POST",
-      body: formData, // Send as FormData, not JSON
+      body: formData,
     });
 
     const data = await res.json();
@@ -29,48 +31,60 @@ export const useProductStore = create((set) => ({
     return { success: true, message: "Product created successfully" };
   },
 
-  // Fetch all products
   fetchProduct: async () => {
-    const res = await fetch("/api/products");
-    const data = await res.json();
-    set({ products: data.data });
+    try {
+      const res = await fetch(`${API_URL}/api/products`);
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Fetch products failed:", res.status, text);
+        return;
+      }
+
+      const data = await res.json();
+      set({ products: data.data || [] });
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
   },
 
-  // Fetch a single product by ID
   fetchProductById: async (productId) => {
-    const res = await fetch(`/api/products/${productId}`);
+    const res = await fetch(`${API_URL}/api/products/${productId}`);
     if (!res.ok) {
-        throw new Error('Product not found');
+      throw new Error("Product not found");
     }
     const data = await res.json();
-    return data.product; // Make sure this matches the response from your API
-},
+    return data.product;
+  },
 
-  // Delete a product
   deleteProduct: async (pid) => {
-    const res = await fetch(`/api/products/${pid}`, {
+    const res = await fetch(`${API_URL}/api/products/${pid}`, {
       method: "DELETE",
     });
     const data = await res.json();
+
     if (!data.success) return { success: false, message: data.message };
-    set((state) => ({ products: state.products.filter((product) => product._id !== pid) }));
+
+    set((state) => ({
+      products: state.products.filter((product) => product._id !== pid),
+    }));
+
     return { success: true, message: data.message };
   },
 
-  // Update a product
   updateProduct: async (pid, updatedProduct) => {
     try {
-      const res = await fetch(`/api/products/${pid}`, {
+      const res = await fetch(`${API_URL}/api/products/${pid}`, {
         method: "PUT",
-        body: updatedProduct, // Pass FormData directly
+        body: updatedProduct,
       });
+
       const data = await res.json();
 
       if (!data.success) {
         return { success: false, message: data.message || "Failed to update product" };
       }
 
-      // Update the product in the state
       set((state) => ({
         products: state.products.map((product) =>
           product._id === pid ? data.data : product
@@ -83,15 +97,16 @@ export const useProductStore = create((set) => ({
       return { success: false, message: "An error occurred while updating the product" };
     }
   },
-  // Delete all products
+
   deleteAllProducts: async () => {
     try {
-      const res = await fetch("/api/products", {
+      const res = await fetch(`${API_URL}/api/products`, {
         method: "DELETE",
       });
       const data = await res.json();
+
       if (data.success) {
-        set({ products: [] }); // Clears the product list in the store
+        set({ products: [] });
         return { success: true, message: "All products deleted successfully" };
       } else {
         return { success: false, message: data.message };
@@ -102,9 +117,8 @@ export const useProductStore = create((set) => ({
     }
   },
 
-  // Search products by name
   searchProducts: async (searchTerm) => {
-    const res = await fetch(`/api/products/search?search=${searchTerm}`);
+    const res = await fetch(`${API_URL}/api/products/search?search=${searchTerm}`);
     const data = await res.json();
     set({ products: data.data });
   },

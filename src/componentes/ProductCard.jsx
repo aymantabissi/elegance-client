@@ -7,15 +7,15 @@ import PropTypes from "prop-types";
 import axios from "axios";
 
 function ProductCard({ product, userRole = "User" }) {
+  const API_URL = import.meta.env.VITE_API_URL;
 
-  // ==== FIX IMAGE URL ====
-  const imageUrl =
-    product.image && product.image.startsWith("/uploads/")
-      ? `http://localhost:5000${product.image}`
-      : product.image || "/uploads/default-image.jpg";
+  const imageUrl = product.image
+    ? product.image.startsWith("http")
+      ? product.image.replace("http://localhost:5000", API_URL)
+      : `${API_URL}${product.image.startsWith("/") ? "" : "/"}${product.image}`
+    : `${API_URL}/uploads/default-image.jpg`;
 
   const { deleteProduct, updateProduct } = useProductStore();
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [updatedProduct, setUpdatedProduct] = useState({
     name: product.name,
@@ -25,55 +25,43 @@ function ProductCard({ product, userRole = "User" }) {
 
   const [hoveredRating, setHoveredRating] = useState(0);
   const [isRating, setIsRating] = useState(false);
-const addToCart = useCartStore((state) => state.addToCart);
-
-
+  const addToCart = useCartStore((state) => state.addToCart);
   const location = useLocation();
 
-  // ===== DELETE PRODUCT =====
   const handleDeleteProduct = async (pid) => {
     try {
       const { success, message } = await deleteProduct(pid);
       if (success) toast.success("Product deleted successfully");
       else toast.error("Failed: " + message);
-    } catch (error) {
+    } catch {
       toast.error("Error deleting product");
     }
   };
 
-  // ===== UPDATE PRODUCT =====
   const handleUpdateProduct = async (pid, updatedProduct) => {
     try {
       const response = await updateProduct(pid, updatedProduct);
-
       if (response && response.success) {
         toast.success("Product updated");
         setIsModalOpen(false);
       } else {
         toast.error(response?.message || "Failed to update");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error updating product");
     }
   };
 
-  // ===== ADD TO CART FIXED =====
-  // ===== ADD TO CART FIXED + REFRESH PAGE =====
-const handleAddToCart = () => {
+  const handleAddToCart = () => {
+    addToCart({
+      _id: product._id,
+      name: product.name,
+      price: product.price,
+      image: imageUrl,
+    });
+    toast.success("Produit ajouté au panier 🛒");
+  };
 
-  addToCart({
-    _id: product._id,
-    name: product.name,
-    price: product.price,
-    image: imageUrl,
-  });
-
-  toast.success("Produit ajouté au panier 🛒");
-};
-
-
-
-  // ===== RATING =====
   const handleRating = async (newRating) => {
     const token = localStorage.getItem("token");
     if (!token) return toast.error("Please log in to rate");
@@ -82,7 +70,7 @@ const handleAddToCart = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/products/rating",
+        `${API_URL}/api/products/rating`,
         {
           productId: product._id,
           rating: newRating,
@@ -94,21 +82,17 @@ const handleAddToCart = () => {
 
       if (response.data.success) {
         toast.success("Rating added");
-
-        // Update UI instantly
         product.rating =
-          (product.rating * product.reviews + newRating) /
-          (product.reviews + 1);
+          (product.rating * product.reviews + newRating) / (product.reviews + 1);
         product.reviews += 1;
       }
-    } catch (error) {
+    } catch {
       toast.error("Error rating product");
     } finally {
       setIsRating(false);
     }
   };
 
-  // ===== STARS RENDER =====
   const renderStars = (rating) => {
     const filled = Math.round(rating);
 
@@ -144,12 +128,14 @@ const handleAddToCart = () => {
 
   return (
     <div className="relative bg-white rounded-lg shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
-      
       <Link to={`/product/${product._id}`}>
         <img
           src={imageUrl}
           alt={product.name}
           className="w-full h-64 object-cover rounded-t-lg"
+          onError={(e) => {
+            e.currentTarget.src = `${API_URL}/uploads/default-image.jpg`;
+          }}
         />
       </Link>
 
@@ -187,10 +173,8 @@ const handleAddToCart = () => {
         </div>
       </div>
 
-      {/* ===== MODAL UPDATE ===== */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-
           <div className="bg-gray-800 text-white p-6 rounded-lg w-96">
             <h2 className="text-xl mb-4">Update Product</h2>
 
@@ -234,23 +218,18 @@ const handleAddToCart = () => {
 
               <button
                 className="px-4 py-2 bg-blue-500 rounded"
-                onClick={() =>
-                  handleUpdateProduct(product._id, updatedProduct)
-                }
+                onClick={() => handleUpdateProduct(product._id, updatedProduct)}
               >
                 Update
               </button>
             </div>
           </div>
-
         </div>
       )}
-
     </div>
   );
 }
 
-// ==== PROP TYPES FIX ====
 ProductCard.propTypes = {
   product: PropTypes.object.isRequired,
   userRole: PropTypes.string,
