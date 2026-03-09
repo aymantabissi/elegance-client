@@ -5,20 +5,24 @@ import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import jwt_decode from "jwt-decode";
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 function Login() {
+  const API_URL = import.meta.env.VITE_API_URL;
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
   const loadCart = useCartStore((state) => state.loadCart);
   const navigate = useNavigate();
 
-  // Verify token validity
   const verifyToken = () => {
     const token = localStorage.getItem("token");
 
     if (!token) return false;
+
     try {
       const decoded = jwt_decode(token);
       const currentTime = Date.now() / 1000;
@@ -28,7 +32,6 @@ function Login() {
     }
   };
 
-  // Debug token on component mount
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -41,7 +44,6 @@ function Login() {
     }
   }, []);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (verifyToken()) {
       const decoded = jwt_decode(localStorage.getItem("token"));
@@ -61,12 +63,15 @@ function Login() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/login",
+        `${API_URL}/api/login`,
         { email, password },
-        { headers: { "Content-Type": "application/json" } }
+        {
+          headers: { "Content-Type": "application/json" },
+        }
       );
 
       const { token, user } = response.data;
+
       if (!token) {
         toast.error("❌ Token not received!");
         setLoading(false);
@@ -76,17 +81,26 @@ function Login() {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
       loadCart(user.id || user._id);
-window.dispatchEvent(new Event("authChanged"));
 
+      window.dispatchEvent(new Event("authChanged"));
 
       const decodedToken = jwt_decode(token);
 
-      toast.success(`✅ Connexion réussie ! ${decodedToken.role === "admin" ? "Bienvenue administrateur." : ""}`);
-      setTimeout(() => navigate(decodedToken.role === "admin" ? "/dashboard" : "/home"), 2000);
+      toast.success(
+        `✅ Connexion réussie ! ${
+          decodedToken.role === "admin" ? "Bienvenue administrateur." : ""
+        }`
+      );
+
+      setTimeout(() => {
+        navigate(decodedToken.role === "admin" ? "/dashboard" : "/home");
+      }, 2000);
     } catch (error) {
       console.error("Login error:", error);
-      const errorMessage = error.response?.data?.message || "❌ Erreur lors de la connexion !";
+      const errorMessage =
+        error.response?.data?.message || "❌ Erreur lors de la connexion !";
       toast.error(errorMessage);
+    } finally {
       setLoading(false);
     }
   };
@@ -94,37 +108,42 @@ window.dispatchEvent(new Event("authChanged"));
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       setLoading(true);
-      console.log("Google credential received:", credentialResponse);
 
       if (!credentialResponse.credential) {
         throw new Error("No credential received from Google");
       }
 
-      const response = await axios.post(
-        "http://localhost:5000/api/auth/google",
-        { credential: credentialResponse.credential }
-      );
+      const response = await axios.post(`${API_URL}/api/auth/google`, {
+        credential: credentialResponse.credential,
+      });
 
       const { token, user } = response.data;
+
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
       loadCart(user.id || user._id);
 
       window.dispatchEvent(new Event("authChanged"));
 
-
       const decodedToken = jwt_decode(token);
-      toast.success(`✅ Connexion Google réussie ! ${decodedToken.name ? `Bienvenue ${decodedToken.name}` : ''}`);
+
+      toast.success(
+        `✅ Connexion Google réussie ! ${
+          decodedToken.name ? `Bienvenue ${decodedToken.name}` : ""
+        }`
+      );
 
       setTimeout(() => {
         navigate(decodedToken.role === "admin" ? "/dashboard" : "/home");
       }, 2000);
     } catch (error) {
       console.error("Google login error:", error);
-      const errorMessage = error.response?.data?.message || 
-                         error.message || 
-                         "❌ Connexion Google échouée";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "❌ Connexion Google échouée";
       toast.error(errorMessage);
+    } finally {
       setLoading(false);
     }
   };
@@ -163,7 +182,9 @@ window.dispatchEvent(new Event("authChanged"));
           </div>
 
           <div>
-            <label className="block text-gray-600 font-medium">Mot de passe</label>
+            <label className="block text-gray-600 font-medium">
+              Mot de passe
+            </label>
             <input
               type="password"
               placeholder="Votre mot de passe"
@@ -191,13 +212,11 @@ window.dispatchEvent(new Event("authChanged"));
           <div className="w-full border-t border-gray-300"></div>
         </div>
 
-        {/* Google Login */}
         <div className="flex justify-center">
-          <GoogleOAuthProvider clientId={"95872693443-5hbop4agfons9mhdf5521glk04rgdo5d.apps.googleusercontent.com"}>
+          <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={handleGoogleFailure}
-              cookiePolicy={'single_host_origin'}
               locale="fr"
               text="continue_with"
               shape="rectangular"
@@ -209,8 +228,8 @@ window.dispatchEvent(new Event("authChanged"));
 
         <p className="text-center text-gray-600 mt-4">
           Nouveau client ?{" "}
-          <Link 
-            to="/Register" 
+          <Link
+            to="/Register"
             className="text-blue-600 hover:underline font-semibold"
           >
             Créez un compte
