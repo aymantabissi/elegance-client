@@ -1,4 +1,3 @@
-// src/Pages/Register.jsx
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -7,9 +6,9 @@ import "react-toastify/dist/ReactToastify.css";
 import jwt_decode from "jwt-decode";
 
 function Register() {
+  const API_URL = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
 
-  // ✅ Check if logged user is admin (token)
   const isAdmin = useMemo(() => {
     const token = localStorage.getItem("token");
     if (!token) return false;
@@ -25,7 +24,7 @@ function Register() {
     name: "",
     email: "",
     password: "",
-    role: "user", // ✅ default always user
+    role: "user",
     age: "",
     gender: "",
     country: "",
@@ -39,12 +38,6 @@ function Register() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectRole = (role) => {
-    // ✅ only admin can change roles
-    if (!isAdmin) return;
-    setFormData((prev) => ({ ...prev, role }));
-  };
-
   const validate = () => {
     const required = ["name", "email", "password", "age", "gender", "country"];
     for (const k of required) {
@@ -53,10 +46,12 @@ function Register() {
         return false;
       }
     }
+
     if (!agree) {
       toast.error("❌ Veuillez accepter les conditions d'utilisation");
       return false;
     }
+
     return true;
   };
 
@@ -67,24 +62,28 @@ function Register() {
     setLoading(true);
 
     try {
-      // ✅ IMPORTANT: if not admin, force role=user (even if someone tries to hack UI)
       const payload = {
         ...formData,
         role: isAdmin ? formData.role : "user",
       };
 
-      // ✅ optionally add Authorization only if admin is creating roles
       const token = localStorage.getItem("token");
       const headers =
         isAdmin && token
-          ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-          : { "Content-Type": "application/json" };
+          ? {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            }
+          : {
+              "Content-Type": "application/json",
+            };
 
-      await axios.post("http://localhost:5000/api/register", payload, { headers });
+      await axios.post(`${API_URL}/api/register`, payload, { headers });
 
       toast.success("✅ Inscription réussie !");
       setTimeout(() => navigate("/login"), 1500);
     } catch (error) {
+      console.error("Register error:", error);
       const errorMessage =
         error.response?.data?.message || "❌ Erreur lors de l'inscription !";
       toast.error(errorMessage);
@@ -100,12 +99,11 @@ function Register() {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
           <div className="md:flex">
-            {/* Left Side */}
             <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 p-12 flex-col justify-center text-white">
               <div className="max-w-xs mx-auto">
                 <h1 className="text-3xl font-bold mb-4">Rejoignez notre communauté</h1>
                 <p className="text-blue-100 mb-8">
-                  Créez votre compte et bénéficiez d`une expérience personnalisée avec des recommandations adaptées à votre profil.
+                  Créez votre compte et bénéficiez d&apos;une expérience personnalisée avec des recommandations adaptées à votre profil.
                 </p>
 
                 <div className="space-y-4">
@@ -135,7 +133,6 @@ function Register() {
                   ))}
                 </div>
 
-                {/* ✅ Admin hint */}
                 {isAdmin && (
                   <div className="mt-8 bg-white/10 border border-white/20 rounded-xl p-4 text-sm">
                     <p className="font-semibold">Mode Admin</p>
@@ -147,7 +144,6 @@ function Register() {
               </div>
             </div>
 
-            {/* Right Side - Form */}
             <div className="md:w-1/2 p-8 sm:p-12">
               <div className="text-center mb-8">
                 <img
@@ -165,7 +161,6 @@ function Register() {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nom complet
@@ -180,7 +175,6 @@ function Register() {
                     />
                   </div>
 
-                  {/* Age */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Âge
@@ -195,7 +189,6 @@ function Register() {
                     />
                   </div>
 
-                  {/* Gender */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Genre
@@ -213,7 +206,6 @@ function Register() {
                     </select>
                   </div>
 
-                  {/* Country */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Pays
@@ -228,7 +220,6 @@ function Register() {
                     />
                   </div>
 
-                  {/* Email */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Email
@@ -243,7 +234,6 @@ function Register() {
                     />
                   </div>
 
-                  {/* Password */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Mot de passe
@@ -258,66 +248,71 @@ function Register() {
                     />
                   </div>
 
-                  {/* ✅ Role only for Admin */}
-               {isAdmin && (
-  <div className="md:col-span-2">
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      Type de compte
-    </label>
+                  {isAdmin && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Type de compte
+                      </label>
 
-    <div className="flex gap-4">
+                      <div className="flex gap-4 flex-wrap">
+                        <label
+                          className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition ${
+                            formData.role === "user"
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value="user"
+                            checked={formData.role === "user"}
+                            onChange={handleChange}
+                            className="accent-blue-600"
+                          />
+                          <span>Utilisateur</span>
+                        </label>
 
-      {/* USER */}
-      <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition
-        ${formData.role === "user" ? "border-blue-500 bg-blue-50" : "border-gray-300"}`}>
-        
-        <input
-          type="radio"
-          name="role"
-          value="user"
-          checked={formData.role === "user"}
-          onChange={handleChange}
-          className="accent-blue-600"
-        />
-        <span>Utilisateur</span>
-      </label>
+                        <label
+                          className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition ${
+                            formData.role === "manager"
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value="manager"
+                            checked={formData.role === "manager"}
+                            onChange={handleChange}
+                            className="accent-blue-600"
+                          />
+                          <span>Manager</span>
+                        </label>
 
-      {/* MANAGER */}
-      <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition
-        ${formData.role === "manager" ? "border-blue-500 bg-blue-50" : "border-gray-300"}`}>
-        
-        <input
-          type="radio"
-          name="role"
-          value="manager"
-          checked={formData.role === "manager"}
-          onChange={handleChange}
-          className="accent-blue-600"
-        />
-        <span>Manager</span>
-      </label>
-
-      {/* ADMIN */}
-      <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition
-        ${formData.role === "admin" ? "border-blue-500 bg-blue-50" : "border-gray-300"}`}>
-        
-        <input
-          type="radio"
-          name="role"
-          value="admin"
-          checked={formData.role === "admin"}
-          onChange={handleChange}
-          className="accent-blue-600"
-        />
-        <span>Admin</span>
-      </label>
-
-    </div>
-  </div>
-)}
+                        <label
+                          className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition ${
+                            formData.role === "admin"
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value="admin"
+                            checked={formData.role === "admin"}
+                            onChange={handleChange}
+                            className="accent-blue-600"
+                          />
+                          <span>Admin</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Terms */}
                 <div className="flex items-start">
                   <input
                     id="terms"
@@ -327,9 +322,9 @@ function Register() {
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
-                    J`accepte les{" "}
+                    J&apos;accepte les{" "}
                     <span className="text-blue-600 hover:underline cursor-pointer">
-                      conditions d`utilisation
+                      conditions d&apos;utilisation
                     </span>{" "}
                     et la{" "}
                     <span className="text-blue-600 hover:underline cursor-pointer">
@@ -338,13 +333,14 @@ function Register() {
                   </label>
                 </div>
 
-                {/* Submit */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-lg font-medium
-                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition shadow-md hover:shadow-lg
-                  ${loading ? "opacity-70 cursor-not-allowed" : "hover:from-blue-700 hover:to-blue-800"}`}
+                  className={`w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition shadow-md hover:shadow-lg ${
+                    loading
+                      ? "opacity-70 cursor-not-allowed"
+                      : "hover:from-blue-700 hover:to-blue-800"
+                  }`}
                 >
                   {loading ? "Création..." : "Créer mon compte"}
                 </button>
@@ -359,7 +355,6 @@ function Register() {
                 </p>
               </div>
 
-              {/* ✅ Small note */}
               {!isAdmin && (
                 <div className="mt-6 text-xs text-gray-500 text-center">
                   Les comptes administrateur et manager ne peuvent être créés que par un administrateur.
